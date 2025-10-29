@@ -1,87 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Tap to Place Webpage in AR</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Google.com in AR</title>
+
+  <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <!-- AR.js (markerless) -->
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar-nft.min.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    .msg {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: white; padding: 14px 28px;
+      border-radius: 50px; font: 16px Arial; z-index: 1000;
+      pointer-events: none; transition: opacity 0.6s;
+    }
+    .msg.hide { opacity: 0; }
+  </style>
 </head>
-<body style="margin:0; overflow:hidden;">
+<body>
+
   <a-scene
     embedded
     vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true;"
     xr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true;"
     arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
     gesture-detector
   >
 
-    <!-- Hit-test cursor (invisible but needed) -->
+    <!-- Hit-test cursor -->
     <a-entity id="cursor" cursor="fuse: false" raycaster="objects: .clickable" position="0 0 -1"></a-entity>
 
-    <!-- Your webpage plane (starts hidden) -->
+    <!-- Google.com via proxy (bypasses iframe block) -->
     <a-plane
-      id="webpage"
+      id="google"
       visible="false"
-      width="1.6" height="0.9"
-      material="src: https://www.stpaulcopticservice.org; side: double; transparent: true;"
+      width="2.0"
+      height="1.1"
+      material="src: https://api.allorigins.us/get?url=https%3A//www.google.com&callback=; side: double; transparent: true;"
       position="0 0.5 0"
       rotation="-90 0 0"
       class="clickable"
-      animation__fadein="property: components.material.material.opacity; from: 0; to: 1; dur: 500; startEvents: placed"
+      animation__fade="property: components.material.material.opacity; from: 0; to: 1; dur: 500; startEvents: placed"
     ></a-plane>
 
-    <!-- Tap-to-place logic -->
-    <a-entity id="placement-helper"></a-entity>
-
-    <!-- Camera -->
-    <a-camera id="camera"></a-camera>
+    <a-entity camera></a-entity>
 
   </a-scene>
 
-  <!-- Tap instruction overlay -->
-  <div style="position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:white; padding:12px 20px; border-radius:50px; font-family:Arial; font-size:16px; z-index:100; pointer-events:none;">
-    Tap any surface to place your webpage
-  </div>
+  <div class="msg" id="msg">Tap any surface to place Google in AR</div>
 
   <script>
     AFRAME.registerComponent('tap-place', {
       init: function () {
-        const ground = document.querySelector('#placement-helper');
-        const webpage = document.querySelector('#webpage');
-        const scene = this.el.sceneEl;
+        const plane = document.querySelector('#google');
+        const msg = document.querySelector('#msg');
         let placed = false;
 
-        this.el.addEventListener('click', (evt) => {
-          if (placed) return;
+        this.el.addEventListener('click', (e) => {
+          if (placed || !e.detail.intersection) return;
           placed = true;
 
-          const hitTest = evt.detail.intersection;
-          if (!hitTest) return;
+          const p = e.detail.intersection.point;
+          plane.setAttribute('position', `${p.x} ${p.y + 0.5} ${p.z}`);
+          plane.setAttribute('visible', true);
+          plane.emit('placed');
 
-          const pos = hitTest.point;
-          webpage.setAttribute('position', `${pos.x} ${pos.y + 0.5} ${pos.z}`);
-          webpage.setAttribute('visible', true);
-          webpage.emit('placed');
+          msg.classList.add('hide');
+          setTimeout(() => msg.style.display = 'none', 600);
 
-          // Hide instruction
-          document.querySelector('div').style.display = 'none';
-
-          // Optional: add shadow plane
-          const shadow = document.createElement('a-plane');
-          shadow.setAttribute('rotation', '-90 0 0');
-          shadow.setAttribute('position', `${pos.x} ${pos.y + 0.01} ${pos.z}`);
-          shadow.setAttribute('width', 1.8);
-          shadow.setAttribute('height', 1.8);
-          shadow.setAttribute('material', 'color: black; opacity: 0.2; transparent: true');
-          scene.appendChild(shadow);
+          // Shadow
+          const s = document.createElement('a-plane');
+          s.setAttribute('rotation', '-90 0 0');
+          s.setAttribute('position', `${p.x} ${p.y + 0.01} ${p.z}`);
+          s.setAttribute('width', 2.2); s.setAttribute('height', 2.2);
+          s.setAttribute('material', 'color: #000; opacity: 0.2; transparent: true');
+          this.el.sceneEl.appendChild(s);
         });
       }
     });
 
-    // Attach tap-place to scene
     document.querySelector('a-scene').setAttribute('tap-place', '');
   </script>
+
 </body>
 </html>
